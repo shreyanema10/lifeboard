@@ -107,11 +107,24 @@ input,textarea,select{font-family:inherit;}
 @keyframes pinpop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
 @media(max-width:768px){
 #sb{display:none;}
-#bn{display:flex!important;position:fixed;bottom:0;left:0;right:0;background:var(--bg-card);border-top:1px solid var(--border);z-index:100;padding:8px 0;}
-.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px;font-size:10px;color:var(--muted);}
+body{height:100dvh;}
+#main{height:100dvh;padding-bottom:0;}
+#topbar{padding:env(safe-area-inset-top,12px) 16px 12px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);}
+#topbar h1{font-size:17px;}
+#bn{display:flex!important;position:fixed;bottom:0;left:0;right:0;background:var(--bg-card);border-top:1px solid var(--border);z-index:100;padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 8px);}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 4px;font-size:10px;color:var(--muted);-webkit-tap-highlight-color:transparent;}
 .bni.active{color:var(--accent);}
-.bni span{font-size:20px;}
-#ct{padding:16px;padding-bottom:80px;}
+.bni span{font-size:22px;}
+#ct{padding:12px 16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 80px);}
+.agrid{grid-template-columns:repeat(2,1fr);gap:10px;}
+.acard{padding:14px;}
+.mgrid{grid-template-columns:1fr 1fr;gap:8px;}
+.card{border-radius:10px;padding:14px;}
+.tc{padding:12px 14px;}
+.tct{font-size:13px;}
+.btn{padding:9px 14px;font-size:13px;}
+#pan{padding:20px 16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 20px);}
+.talert{flex-direction:column;align-items:flex-start;gap:10px;}
 }
 #bn{display:none;}
 </style>
@@ -161,19 +174,20 @@ input,textarea,select{font-family:inherit;}
 </nav>
 
 <div id="bn">
-  <div class="bni active" onclick="go('home')"><span>🏠</span>Home</div>
-  <div class="bni" onclick="go('inbox')"><span>📥</span>Inbox</div>
-  <div class="bni" onclick="openForm(null,null)"><span>➕</span>Add</div>
-  <div class="bni" onclick="go('wins')"><span>🏆</span>Wins</div>
-  <div class="bni" onclick="go('settings')"><span>⚙️</span>More</div>
+  <div class="bni" data-bnv="home" onclick="go('home')"><span>🏠</span>Home</div>
+  <div class="bni" data-bnv="tasks" onclick="go('tasks')"><span>📋</span>Tasks</div>
+  <div class="bni" onclick="openForm(null,null)" style="position:relative"><span style="font-size:28px;line-height:1">＋</span></div>
+  <div class="bni" data-bnv="schedule" onclick="go('schedule')"><span>📅</span>Schedule</div>
+  <div class="bni" data-bnv="settings" onclick="go('settings')"><span>⚙️</span>More</div>
 </div>
 
 <div id="main">
   <div id="topbar">
-    <h1 id="ptitle">Home</h1>
-    <div style="display:flex;gap:8px;align-items:center">
+    <button id="back-btn" onclick="goBack()" style="display:none;background:none;border:none;color:var(--accent);font-size:15px;cursor:pointer;padding:4px 8px 4px 0;-webkit-tap-highlight-color:transparent">‹ Back</button>
+    <h1 id="ptitle" style="flex:1">Home</h1>
+    <div style="display:flex;gap:6px;align-items:center">
       <span class="mchip" onclick="cycleMode()" id="mchip">📊 WSPT</span>
-      <button class="btn btng btnsm" onclick="tglTheme()">🌙</button>
+      <button class="btn btng btnsm" onclick="tglTheme()" style="padding:5px 8px">🌙</button>
       <button class="btn btnp btnsm" onclick="openForm(null,null)">+ Task</button>
     </div>
   </div>
@@ -448,11 +462,11 @@ function bdg(sc){
 }
 function si(t,now=new Date()){
   const s=slk(t,now);
-  if(s===Infinity)return{txt:'Flexible',pc:'pf',bc:''};
-  if(s<0)return{txt:'⚠ Missed',pc:'pc',bc:'lc'};
-  if(s<4)return{txt:`⚠ ${s.toFixed(1)}h slack`,pc:'pc',bc:'lc'};
-  if(s<24)return{txt:`${s.toFixed(0)}h slack`,pc:'pt',bc:'lt'};
-  return{txt:`${Math.floor(s/24)}d slack`,pc:'po',bc:'ld'};
+  if(s===Infinity)return{txt:'No deadline',pc:'pf',bc:''};
+  if(s<0)return{txt:'⚠ Overdue',pc:'pc',bc:'lc'};
+  if(s<4)return{txt:`⚠ ${s.toFixed(1)}h buffer left`,pc:'pc',bc:'lc'};
+  if(s<24)return{txt:`${s.toFixed(0)}h buffer`,pc:'pt',bc:'lt'};
+  return{txt:`${Math.floor(s/24)}d buffer`,pc:'po',bc:'ld'};
 }
 function srt(tasks){
   const m=DB.settings.schedulingMode,now=new Date();
@@ -468,18 +482,37 @@ function topT(){
 function thrash(){return DB.tasks.filter(t=>t.status==='inprogress').length>6||(DB.metrics?.repriCount||0)>3;}
 
 // ROUTER
+let navStack=[];
 function go(view,area=null){
+  if(V!==view||CA!==area)navStack.push({v:V,a:CA});
+  if(navStack.length>20)navStack=navStack.slice(-20);
   V=view;CA=area;
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('active'));
   const t=area?document.querySelector(`[data-v="area-${area}"]`):document.querySelector(`[data-v="${view}"]`);
   if(t)t.classList.add('active');
+  // update bottom nav active state
+  document.querySelectorAll('.bni[data-bnv]').forEach(b=>b.classList.toggle('active',b.dataset.bnv===view));
   updBadge();render();
   document.getElementById('main').scrollTop=0;
+  // back button: show on non-home pages
+  const bb=document.getElementById('back-btn');
+  if(bb)bb.style.display=(view==='home'&&!area)?'none':'block';
+}
+function goBack(){
+  const prev=navStack.pop();
+  if(prev){V=prev.v;CA=prev.a;
+    document.querySelectorAll('.bni[data-bnv]').forEach(b=>b.classList.toggle('active',b.dataset.bnv===prev.v));
+    updBadge();render();document.getElementById('main').scrollTop=0;
+    const bb=document.getElementById('back-btn');
+    if(bb)bb.style.display=(prev.v==='home'&&!prev.a)?'none':'block';
+  }else go('home');
 }
 function render(){
   const c=document.getElementById('ct');
-  document.getElementById('ptitle').textContent=CA?AR.find(a=>a.id===CA)?.label||'Area':cp(V);
+  const titles={home:'Home',tasks:'All Tasks',inbox:'Inbox',wins:'Wins 🏆',schedule:'Schedule',triage:'Triage',settings:'Settings'};
+  document.getElementById('ptitle').textContent=CA?AR.find(a=>a.id===CA)?.label||'Area':(titles[V]||cp(V));
   if(V==='home')c.innerHTML=rHome();
+  else if(V==='tasks')c.innerHTML=rAllTasks();
   else if(V==='area'&&CA)c.innerHTML=rArea(CA);
   else if(V==='inbox')c.innerHTML=rInbox();
   else if(V==='wins')c.innerHTML=rWins();
@@ -529,7 +562,7 @@ function rHome(){
       </div>
       ${blk(top)?`<div style="color:var(--warn);font-size:13px;margin-bottom:12px">🔒 Waiting on prerequisites</div>`:''}
       <button onclick="startFocus('${top.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px">▶ Start Focus</button>
-      <span style="color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline" onclick="go('area','${top.areas[0]}')">See all tasks →</span>
+      <span style="color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline" onclick="go('tasks')">See all tasks →</span>
     </div>`;
   } else {
     h+=`<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:center;max-width:520px;margin:0 auto 24px">
@@ -538,8 +571,24 @@ function rHome(){
       <button onclick="openForm(null,null)" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:12px">+ Add a task</button>
     </div>`;
   }
-  h+=`<div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:20px">${mL[DB.settings.schedulingMode]}</div>`;
-  h+=`<h3 style="font-weight:700;font-size:15px;margin-bottom:12px">Life Areas</h3><div class="agrid">`;
+  h+=`<div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:16px">${mL[DB.settings.schedulingMode]}</div>`;
+  // Daily capacity stepper
+  const cap=DB.settings.dailyCapacityHours;
+  const done=DB.tasks.filter(t=>t.completedAt&&new Date(t.completedAt).toDateString()===new Date().toDateString()).length;
+  h+=`<div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:12px 16px">
+    <div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Today's capacity</div>
+      <div style="font-size:22px;font-weight:800">${cap}h <span style="font-size:12px;color:var(--muted);font-weight:400">available · ${done} done today</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="adjCap(-0.5)" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+      <button onclick="adjCap(0.5)" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--accent);background:rgba(108,99,255,.1);color:var(--accent);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+    </div>
+  </div>`;
+  h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h3 style="font-weight:700;font-size:15px">Life Areas</h3>
+    <span style="font-size:12px;color:var(--accent);cursor:pointer" onclick="go('tasks')">All tasks →</span>
+  </div><div class="agrid">`;
   AR.forEach(a=>{
     const tasks=DB.tasks.filter(t=>t.areas.includes(a.id)&&t.status!=='done');
     const done=DB.tasks.filter(t=>t.areas.includes(a.id)&&t.status==='done').length;
@@ -555,6 +604,65 @@ function rHome(){
     </div>`;
   });
   h+=`</div></div>`;
+  return h;
+}
+
+// ALL TASKS VIEW
+function rAllTasks(){
+  const now=new Date();
+  const pending=srt(DB.tasks.filter(t=>t.status!=='done'&&t.status!=='snoozed'));
+  const snoozed=DB.tasks.filter(t=>t.status==='snoozed');
+  const byArea={};
+  pending.forEach(t=>{
+    const aid=t.areas[0]||'work';
+    if(!byArea[aid])byArea[aid]=[];
+    byArea[aid].push(t);
+  });
+  let h=`<div style="max-width:640px">`;
+  // Filter bar
+  h+=`<div class="fbar" style="margin-bottom:16px">
+    <button class="chip${AF==='all'?' active':''}" onclick="AF='all';render()">All (${pending.length})</button>
+    <button class="chip${AF==='today'?' active':''}" onclick="AF='today';render()">Today</button>
+    <button class="chip${AF==='high'?' active':''}" onclick="AF='high';render()">🔴 Urgent</button>
+    <button class="chip${AF==='inprogress'?' active':''}" onclick="AF='inprogress';render()">In Progress</button>
+  </div>`;
+  let filtered=pending;
+  if(AF==='today')filtered=pending.filter(t=>t.dueDate&&new Date(t.dueDate).toDateString()===now.toDateString());
+  else if(AF==='high')filtered=pending.filter(t=>{const s=slk(t,now);return s<24;});
+  else if(AF==='inprogress')filtered=pending.filter(t=>t.status==='inprogress');
+  if(!filtered.length){
+    h+=`<div class="card" style="text-align:center;padding:32px">
+      <div style="font-size:36px;margin-bottom:8px">✨</div>
+      <div style="font-weight:700">Nothing here</div>
+      <div style="color:var(--muted);font-size:13px;margin-top:4px">Try a different filter or add a task</div>
+      <button class="btn btnp" onclick="openForm(null,null)" style="margin-top:16px">+ Add Task</button>
+    </div>`;
+  } else {
+    // Group by area
+    const grouped={};
+    filtered.forEach(t=>{const aid=t.areas[0]||'work';if(!grouped[aid])grouped[aid]=[];grouped[aid].push(t);});
+    AR.filter(a=>grouped[a.id]).forEach(a=>{
+      h+=`<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px">
+        <span style="font-size:16px">${a.e}</span>
+        <span style="font-weight:700;font-size:14px">${a.label}</span>
+        <span style="color:var(--muted);font-size:12px">${grouped[a.id].length} tasks</span>
+      </div><div class="tlist">`;
+      grouped[a.id].forEach(t=>{ h+=rTCard(t,now); });
+      h+=`</div>`;
+    });
+  }
+  if(snoozed.length){
+    h+=`<div style="margin-top:20px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">💤 Snoozed (${snoozed.length})</div><div class="tlist">`;
+    snoozed.forEach(t=>{
+      const a=AR.find(x=>x.id===t.areas[0]);
+      h+=`<div class="card" style="opacity:.6;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px">${a?.e} ${t.title}</span>
+        <button class="btn btng btnsm" onclick="chgSt('${t.id}','pending')">Wake</button>
+      </div>`;
+    });
+    h+=`</div></div>`;
+  }
+  h+=`</div>`;
   return h;
 }
 
@@ -621,6 +729,7 @@ function rArea(aid){
   return h;
 }
 
+function rTCard(t,now=new Date()){return rTC(t,now);}
 function rTC(t,now=new Date()){
   const sc=pri(t,now),b=bdg(sc),s=si(t,now),bkd=blk(t),w=!!t.timeWindow;
   const bc=bkd?'lb':w?'lw':s.bc;
@@ -1105,6 +1214,7 @@ function tglSB(){document.getElementById('sb').classList.toggle('col');}
 function tglTheme(){DB.settings.theme=DB.settings.theme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',DB.settings.theme);saveDB();render();}
 function cycleMode(){const ms=['wspt','edd','moore'];setMode(ms[(ms.indexOf(DB.settings.schedulingMode)+1)%ms.length]);}
 function setE(l){DB.settings.energyLevel=l;saveDB();render();}
+function adjCap(delta){DB.settings.dailyCapacityHours=Math.max(0.5,Math.min(16,+(DB.settings.dailyCapacityHours+delta).toFixed(1)));saveDB();render();toast(`Capacity → ${DB.settings.dailyCapacityHours}h`);}
 function setF(f,aid){AF=f;if(aid)go('area',aid);else render();}
 function editM(aid){const c=DB.areaData[aid]?.mission||'';const v=prompt('Mission statement:',c);if(v!==null){if(!DB.areaData[aid])DB.areaData[aid]={mission:'',metrics:[],goals:[]};DB.areaData[aid].mission=v;saveDB();render();}}
 function addM(aid){const n=prompt('Metric name:');if(!n)return;const t=parseFloat(prompt('Target:')||'10');if(!DB.areaData[aid])DB.areaData[aid]={mission:'',metrics:[],goals:[]};DB.areaData[aid].metrics.push({id:'m'+Date.now(),name:n,target:t,current:0});saveDB();render();}
