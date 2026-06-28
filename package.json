@@ -1,11 +1,5 @@
-  {
-    "name": "lifeboard",
-    "version": "1.0.0",
-    "description": "ADHD-friendly life management app",
-    "scripts": {
-      "start": "http-server . -p 3000 -o -c-1 --cors",
-      "dev": "http-server . -p 3000 -o -c-1 --cors"
-    }
-  }
-  EOF
-
+{
+  "name": "lifeboard",
+  "version": "2.0.0",
+  "description": "ADHD-friendly life management app with smart scheduling algorithms"
+}
